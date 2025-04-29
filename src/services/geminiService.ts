@@ -19,8 +19,8 @@ export const analyzeSymptoms = async (symptoms: string, age: string, gender: str
   }
 
   try {
-    // Updated to use generativelanguage.googleapis.com/v1beta with gemini-1.0-pro model
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${apiKey}`, {
+    // Updated to use the Gemini 2.5 Pro model
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
