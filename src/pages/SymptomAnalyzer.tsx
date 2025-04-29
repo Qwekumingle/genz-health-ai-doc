@@ -5,54 +5,50 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { analyzeSymptoms } from '@/services/geminiService';
+import { toast } from '@/components/ui/sonner';
+import ApiKeyInput from '@/components/ApiKeyInput';
 
 interface AnalysisResult {
   possibleConditions: string[];
+  differentialDiagnosis: string[];
   recommendations: string[];
+  managementOptions: string[];
   severity: 'low' | 'medium' | 'high';
   sources: { title: string; url: string }[];
 }
-
-const mockAnalysis: AnalysisResult = {
-  possibleConditions: [
-    'Common Cold',
-    'Seasonal Allergies',
-    'Sinus Infection'
-  ],
-  recommendations: [
-    'Stay hydrated and get plenty of rest',
-    'Over-the-counter decongestants may provide relief',
-    'If symptoms persist more than 7 days, consult a doctor'
-  ],
-  severity: 'low',
-  sources: [
-    { 
-      title: 'Distinguishing the Common Cold, Sinusitis, and Allergies', 
-      url: 'https://pubmed.ncbi.nlm.nih.gov/example1' 
-    },
-    { 
-      title: 'Treatment options for upper respiratory infections', 
-      url: 'https://pubmed.ncbi.nlm.nih.gov/example2' 
-    }
-  ]
-};
 
 const SymptomAnalyzer: React.FC = () => {
   const [symptoms, setSymptoms] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [apiKey, setApiKey] = useState<string | null>(localStorage.getItem("gemini_api_key"));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!symptoms.trim()) return;
     
+    if (!apiKey) {
+      toast.error("Please set your Gemini API key first");
+      return;
+    }
+    
     setIsAnalyzing(true);
     
-    // Simulate API call to Gemini
-    setTimeout(() => {
-      setResult(mockAnalysis);
+    try {
+      const analysisResult = await analyzeSymptoms(symptoms);
+      setResult(analysisResult);
+      toast.success("Analysis complete!");
+    } catch (error) {
+      console.error("Error during analysis:", error);
+      toast.error("Failed to analyze symptoms. Please try again.");
+    } finally {
       setIsAnalyzing(false);
-    }, 2000);
+    }
+  };
+
+  const handleApiKeyChange = (newApiKey: string) => {
+    setApiKey(newApiKey);
   };
 
   const getSeverityColor = (severity: string) => {
@@ -76,6 +72,8 @@ const SymptomAnalyzer: React.FC = () => {
           Describe your symptoms in detail and our AI will analyze them to provide possible conditions and recommendations.
         </p>
       </div>
+
+      <ApiKeyInput onApiKeyChange={handleApiKeyChange} />
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
         <div className="md:col-span-1">
@@ -106,7 +104,7 @@ const SymptomAnalyzer: React.FC = () => {
                 <Button 
                   type="submit" 
                   className="w-full" 
-                  disabled={isAnalyzing || !symptoms.trim()}
+                  disabled={isAnalyzing || !symptoms.trim() || !apiKey}
                 >
                   {isAnalyzing ? 'Analyzing...' : 'Analyze Symptoms'}
                 </Button>
@@ -151,9 +149,10 @@ const SymptomAnalyzer: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <Tabs defaultValue="conditions">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="conditions">Possible Conditions</TabsTrigger>
-                    <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+                    <TabsTrigger value="differential">Differential Diagnosis</TabsTrigger>
+                    <TabsTrigger value="management">Management</TabsTrigger>
                     <TabsTrigger value="sources">Medical Sources</TabsTrigger>
                   </TabsList>
                   
@@ -177,7 +176,24 @@ const SymptomAnalyzer: React.FC = () => {
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="recommendations" className="mt-4">
+                  <TabsContent value="differential" className="mt-4">
+                    <div className="rounded-lg border p-4">
+                      <h3 className="mb-2 font-medium">Differential Diagnosis</h3>
+                      <p className="mb-4 text-sm text-muted-foreground">
+                        Other conditions to consider that may present with similar symptoms:
+                      </p>
+                      <ul className="space-y-2">
+                        {result.differentialDiagnosis.map((diagnosis, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="text-primary">•</span>
+                            <span>{diagnosis}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="management" className="mt-4">
                     <div className="rounded-lg border p-4">
                       <h3 className="mb-2 font-medium">Recommendations</h3>
                       <ul className="space-y-3">
@@ -187,6 +203,18 @@ const SymptomAnalyzer: React.FC = () => {
                               {idx + 1}
                             </div>
                             <span>{rec}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      
+                      <h3 className="mb-2 mt-6 font-medium">Management Options</h3>
+                      <ul className="space-y-3">
+                        {result.managementOptions.map((option, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-blue-500 text-xs text-white">
+                              {idx + 1}
+                            </div>
+                            <span>{option}</span>
                           </li>
                         ))}
                       </ul>
