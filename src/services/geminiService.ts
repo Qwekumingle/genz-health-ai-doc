@@ -10,7 +10,7 @@ interface GeminiResponse {
   sources: { title: string; url: string }[];
 }
 
-export const analyzeSymptoms = async (symptoms: string): Promise<GeminiResponse> => {
+export const analyzeSymptoms = async (symptoms: string, age: string, gender: string): Promise<GeminiResponse> => {
   const apiKey = localStorage.getItem("gemini_api_key");
   
   if (!apiKey) {
@@ -19,7 +19,8 @@ export const analyzeSymptoms = async (symptoms: string): Promise<GeminiResponse>
   }
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`, {
+    // Updated to use generativelanguage.googleapis.com/v1beta with gemini-1.0-pro model
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -29,7 +30,7 @@ export const analyzeSymptoms = async (symptoms: string): Promise<GeminiResponse>
           {
             parts: [
               {
-                text: `As a medical assistant, analyze these symptoms: "${symptoms}". 
+                text: `As a medical assistant, analyze these symptoms for a ${age} year old ${gender}: "${symptoms}". 
                 Provide a structured JSON response with the following format:
                 {
                   "possibleConditions": ["list of top 3-5 possible conditions"],

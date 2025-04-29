@@ -8,6 +8,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { analyzeSymptoms } from '@/services/geminiService';
 import { toast } from '@/components/ui/sonner';
 import ApiKeyInput from '@/components/ApiKeyInput';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 interface AnalysisResult {
   possibleConditions: string[];
@@ -18,16 +32,33 @@ interface AnalysisResult {
   sources: { title: string; url: string }[];
 }
 
+const formSchema = z.object({
+  symptoms: z.string().min(10, {
+    message: "Symptoms must be at least 10 characters long.",
+  }),
+  age: z.string().min(1, {
+    message: "Age is required.",
+  }),
+  gender: z.string().min(1, {
+    message: "Gender is required.",
+  }),
+});
+
 const SymptomAnalyzer: React.FC = () => {
-  const [symptoms, setSymptoms] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [apiKey, setApiKey] = useState<string | null>(localStorage.getItem("gemini_api_key"));
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!symptoms.trim()) return;
-    
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      symptoms: "",
+      age: "",
+      gender: "",
+    },
+  });
+
+  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!apiKey) {
       toast.error("Please set your Gemini API key first");
       return;
@@ -36,7 +67,7 @@ const SymptomAnalyzer: React.FC = () => {
     setIsAnalyzing(true);
     
     try {
-      const analysisResult = await analyzeSymptoms(symptoms);
+      const analysisResult = await analyzeSymptoms(values.symptoms, values.age, values.gender);
       setResult(analysisResult);
       toast.success("Analysis complete!");
     } catch (error) {
@@ -85,30 +116,81 @@ const SymptomAnalyzer: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <Textarea
-                  placeholder="Describe your symptoms here... (e.g., I've had a headache for 2 days, along with a runny nose and sore throat)"
-                  className="min-h-[200px] resize-none"
-                  value={symptoms}
-                  onChange={(e) => setSymptoms(e.target.value)}
-                />
-                <div className="text-xs text-muted-foreground">
-                  <p>Include details such as:</p>
-                  <ul className="ml-4 list-disc">
-                    <li>When symptoms started</li>
-                    <li>Severity (mild, moderate, severe)</li>
-                    <li>Any recent travel or exposures</li>
-                    <li>Previous medical conditions</li>
-                  </ul>
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  disabled={isAnalyzing || !symptoms.trim() || !apiKey}
-                >
-                  {isAnalyzing ? 'Analyzing...' : 'Analyze Symptoms'}
-                </Button>
-              </form>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="age"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Age*</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter your age" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="gender"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Gender*</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select gender" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="symptoms"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Symptoms*</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Describe your symptoms here... (e.g., I've had a headache for 2 days, along with a runny nose and sore throat)"
+                            className="min-h-[150px] resize-none"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="text-xs text-muted-foreground">
+                    <p>Include details such as:</p>
+                    <ul className="ml-4 list-disc">
+                      <li>When symptoms started</li>
+                      <li>Severity (mild, moderate, severe)</li>
+                      <li>Any recent travel or exposures</li>
+                      <li>Previous medical conditions</li>
+                    </ul>
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={isAnalyzing || !apiKey}
+                  >
+                    {isAnalyzing ? 'Analyzing...' : 'Analyze Symptoms'}
+                  </Button>
+                </form>
+              </Form>
             </CardContent>
           </Card>
         </div>
