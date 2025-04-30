@@ -11,7 +11,7 @@ interface GeminiResponse {
 }
 
 // Your hardcoded API key - Replace "YOUR_GEMINI_API_KEY_HERE" with your actual Gemini API key
-const HARDCODED_API_KEY = "YOUR_GEMINI_API_KEY_HERE";
+const HARDCODED_API_KEY = "AIzaSyBWQchLXmB2Mo_Qwn2DaEoneEJoix9_xQ8";
 
 export const analyzeSymptoms = async (symptoms: string, age: string, gender: string): Promise<GeminiResponse> => {
   // Try to get the API key from localStorage first, fallback to the hardcoded key
