@@ -25,7 +25,7 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeyChange }) => {
     if (apiKey.trim()) {
       localStorage.setItem("gemini_api_key", apiKey);
       onApiKeyChange(apiKey);
-      toast.success("API key saved successfully!");
+      toast.success("Custom API key saved successfully!");
       setIsVisible(false);
     } else {
       toast.error("Please enter a valid API key");
@@ -40,15 +40,15 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onApiKeyChange }) => {
         onClick={() => setIsVisible(!isVisible)}
         className="absolute right-4 top-4 z-10"
       >
-        {apiKey ? "Change API Key" : "Set API Key"}
+        Custom API Key
       </Button>
       
       {isVisible && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
-            <h3 className="mb-4 text-lg font-medium">Enter Your Gemini API Key</h3>
+            <h3 className="mb-4 text-lg font-medium">Custom Gemini API Key (Optional)</h3>
             <p className="mb-4 text-sm text-muted-foreground">
-              You'll need a Google API key with access to the Gemini API. 
+              A default API key is already configured, but you can use your own if you prefer.
               Your key is stored locally in your browser.
             </p>
             <div className="space-y-4">

@@ -10,12 +10,16 @@ interface GeminiResponse {
   sources: { title: string; url: string }[];
 }
 
+// Your hardcoded API key - Replace "YOUR_GEMINI_API_KEY_HERE" with your actual Gemini API key
+const HARDCODED_API_KEY = "YOUR_GEMINI_API_KEY_HERE";
+
 export const analyzeSymptoms = async (symptoms: string, age: string, gender: string): Promise<GeminiResponse> => {
-  const apiKey = localStorage.getItem("gemini_api_key");
+  // Try to get the API key from localStorage first, fallback to the hardcoded key
+  const apiKey = localStorage.getItem("gemini_api_key") || HARDCODED_API_KEY;
   
-  if (!apiKey) {
-    toast.error("Please set your Gemini API key first");
-    throw new Error("No API key provided");
+  if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE") {
+    toast.error("API key not configured correctly");
+    throw new Error("No valid API key available");
   }
 
   try {
