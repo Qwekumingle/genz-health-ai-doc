@@ -12,6 +12,7 @@ import Pricing from "./pages/Pricing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
+import Appointments from "./pages/Appointments";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/symptom-analyzer" element={<SymptomAnalyzer />} />
             <Route path="/image-analysis" element={<ImageAnalysis />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/appointments" element={<Appointments />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="*" element={<NotFound />} />
