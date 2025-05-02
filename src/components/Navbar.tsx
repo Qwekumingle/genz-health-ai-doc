@@ -21,6 +21,12 @@ const Navbar: React.FC = () => {
           <Link to="/image-analysis" className="px-4 py-2 font-medium text-foreground hover:text-primary">
             Image Analysis
           </Link>
+          <Link to="/about" className="px-4 py-2 font-medium text-foreground hover:text-primary">
+            About Us
+          </Link>
+          <Link to="/doctors" className="px-4 py-2 font-medium text-foreground hover:text-primary">
+            Our Doctors
+          </Link>
           <Link to="/pricing" className="px-4 py-2 font-medium text-foreground hover:text-primary">
             Pricing
           </Link>
