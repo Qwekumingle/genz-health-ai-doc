@@ -106,6 +106,16 @@ export const analyzeImage = async (
     // Convert image to base64
     const base64Image = await fileToBase64(imageFile);
     
+    // Add debug output for troubleshooting
+    console.log("Image analysis request details:", {
+      imageType,
+      bodyPart,
+      additionalInfoProvided: !!additionalInfo,
+      imageSize: base64Image.length,
+      fileType: imageFile.type,
+      apiKeyLength: apiKey.length
+    });
+    
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-vision:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
@@ -145,25 +155,52 @@ export const analyzeImage = async (
       }),
     });
 
+    // Log the response status for debugging
+    console.log("Gemini API response status:", response.status);
+    
     const data = await response.json();
     
+    // Log the response structure for debugging
+    console.log("Gemini API response structure:", Object.keys(data));
+    
     if (!response.ok) {
-      throw new Error(data.error?.message || "Failed to analyze image");
+      const errorMessage = data.error?.message || "Failed to analyze image";
+      console.error("Gemini API error:", data.error);
+      throw new Error(errorMessage);
+    }
+    
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts) {
+      console.error("Unexpected response structure:", data);
+      throw new Error("Invalid response structure from Gemini API");
     }
     
     const textContent = data.candidates[0].content.parts[0].text;
+    console.log("Received text content:", textContent && textContent.substring(0, 100) + "...");
     
     // Extract the JSON part from the response
     const jsonMatch = textContent.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error("Failed to extract JSON from response:", textContent);
       throw new Error("Could not parse JSON response from Gemini API");
     }
     
-    const parsedResponse: ImageAnalysisResponse = JSON.parse(jsonMatch[0]);
-    return parsedResponse;
+    try {
+      const parsedResponse: ImageAnalysisResponse = JSON.parse(jsonMatch[0]);
+      console.log("Successfully parsed response:", parsedResponse);
+      return parsedResponse;
+    } catch (jsonError) {
+      console.error("JSON parsing error:", jsonError, "Raw match:", jsonMatch[0]);
+      throw new Error("Failed to parse JSON data from Gemini API response");
+    }
   } catch (error) {
     console.error("Error analyzing image:", error);
     toast.error("Failed to analyze image. Please try again.");
+    
+    // Add more context to the error for better debugging
+    if (error instanceof Error) {
+      console.error("Error details:", error.message, error.stack);
+    }
+    
     throw error;
   }
 };
