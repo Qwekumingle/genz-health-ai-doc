@@ -7,6 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from '@/components/ui/sonner';
+import { Skeleton } from '@/components/ui/skeleton';
+import { analyzeImage } from '@/services/geminiService';
+import { LoaderCircle } from 'lucide-react';
 
 interface AnalysisResult {
   findings: string[];
@@ -15,33 +19,6 @@ interface AnalysisResult {
   recommendations: string[];
   sources: { title: string; url: string }[];
 }
-
-const mockAnalysis: AnalysisResult = {
-  findings: [
-    'No visible fractures or dislocations',
-    'Normal bone density',
-    'Slight narrowing of joint space in the knee joint',
-    'Small osteophyte formation'
-  ],
-  interpretation: 'The image shows early signs of osteoarthritis in the knee joint. This is characterized by the slight narrowing of the joint space and small osteophyte (bone spur) formation. Overall, this represents a mild case of degenerative joint disease.',
-  confidence: 87,
-  recommendations: [
-    'Consider non-steroidal anti-inflammatory medication for pain if present',
-    'Physical therapy focusing on strengthening the muscles around the knee joint',
-    'Weight management to reduce pressure on the joint',
-    'Follow up with an orthopedic specialist for comprehensive evaluation'
-  ],
-  sources: [
-    { 
-      title: 'Radiographic Assessment of Osteoarthritis', 
-      url: 'https://pubmed.ncbi.nlm.nih.gov/example3' 
-    },
-    { 
-      title: 'Clinical Management of Early Osteoarthritis', 
-      url: 'https://pubmed.ncbi.nlm.nih.gov/example4' 
-    }
-  ]
-};
 
 const ImageAnalysis: React.FC = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -66,17 +43,32 @@ const ImageAnalysis: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!imageFile || !imageType || !bodyPart) return;
+    if (!imageFile || !imageType || !bodyPart) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
     
     setIsAnalyzing(true);
     
-    // Simulate API call to Gemini
-    setTimeout(() => {
-      setResult(mockAnalysis);
+    try {
+      // Call the Gemini API to analyze the image
+      const analysisResult = await analyzeImage(
+        imageFile,
+        imageType,
+        bodyPart,
+        additionalInfo
+      );
+      
+      setResult(analysisResult);
+      toast.success("Image analysis complete");
+    } catch (error) {
+      console.error("Error analyzing image:", error);
+      toast.error("Failed to analyze image. Please try again.");
+    } finally {
       setIsAnalyzing(false);
-    }, 2500);
+    }
   };
 
   const getConfidenceColor = (confidence: number) => {
@@ -197,7 +189,12 @@ const ImageAnalysis: React.FC = () => {
                   className="w-full" 
                   disabled={isAnalyzing || !imageFile || !imageType || !bodyPart}
                 >
-                  {isAnalyzing ? 'Analyzing...' : 'Analyze Image'}
+                  {isAnalyzing ? (
+                    <>
+                      <LoaderCircle className="animate-spin mr-2" />
+                      Analyzing...
+                    </>
+                  ) : 'Analyze Image'}
                 </Button>
               </form>
             </CardContent>
@@ -217,11 +214,22 @@ const ImageAnalysis: React.FC = () => {
 
           {isAnalyzing && (
             <div className="flex h-full flex-col items-center justify-center rounded-lg border p-12 text-center">
-              <div className="animate-pulse text-6xl">🔬</div>
+              <div className="mb-4">
+                <LoaderCircle className="animate-spin h-12 w-12 text-primary mx-auto" />
+              </div>
               <h3 className="mt-4 text-xl font-medium">Analyzing Your Medical Image</h3>
               <p className="mt-2 text-muted-foreground">
-                Our AI is processing the image...
+                Our AI is processing the image... This may take a few moments.
               </p>
+              
+              <div className="w-full max-w-md mt-6">
+                <div className="space-y-4">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+              </div>
             </div>
           )}
 
