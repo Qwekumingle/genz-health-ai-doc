@@ -60,7 +60,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       
       if (error) {
-        toast.error(error.message);
+        // Special handling for email not confirmed error
+        if (error.message === 'Email not confirmed') {
+          toast.error('Please check your email for the confirmation link');
+          // Try to resend confirmation email
+          await supabase.auth.resend({
+            type: 'signup',
+            email,
+          });
+          toast.info('A new confirmation email has been sent');
+        } else {
+          toast.error(error.message);
+        }
         throw error;
       }
       
@@ -73,14 +84,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
     try {
-      const { error } = await supabase.auth.signUp({
+      const { error, data } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             first_name: firstName,
             last_name: lastName
-          }
+          },
+          // Attempt auto-confirmation for development
+          emailRedirectTo: window.location.origin
         }
       });
       
@@ -89,7 +102,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw error;
       }
       
-      toast.success('Signup successful! Please check your email to confirm your account.');
+      if (data.user && !data.session) {
+        // This means email confirmation is required
+        toast.success('Signup successful! Please check your email to confirm your account.');
+      } else if (data.session) {
+        // Email confirmation is not required or was bypassed
+        toast.success('Signup successful!');
+      }
     } catch (error: any) {
       console.error('Error signing up:', error.message);
       throw error;
