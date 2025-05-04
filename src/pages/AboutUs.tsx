@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
-import { Info, Users, HospitalSquare } from "lucide-react";
+import { Info, Users, Building } from "lucide-react";
 import { fadeIn, staggerContainer, slideInFromLeft, slideInFromRight } from '@/lib/animations';
 
 const AboutUs = () => {
@@ -70,7 +69,7 @@ const AboutUs = () => {
               <Card className="bg-gradient-to-br from-blue-50 to-white border-blue-100">
                 <CardContent className="pt-6 space-y-4">
                   <div className="bg-primary/10 w-12 h-12 rounded-full flex items-center justify-center">
-                    <HospitalSquare className="h-6 w-6 text-primary" />
+                    <Building className="h-6 w-6 text-primary" />
                   </div>
                   <h3 className="text-xl font-semibold">Accessibility</h3>
                   <p className="text-muted-foreground">
