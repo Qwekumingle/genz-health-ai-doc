@@ -3,8 +3,14 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Menu, X } from 'lucide-react';
+import { User } from '@supabase/supabase-js';
 
-const MobileNavbar: React.FC = () => {
+interface MobileNavbarProps {
+  user: User | null;
+  onSignOut: () => Promise<void>;
+}
+
+const MobileNavbar: React.FC<MobileNavbarProps> = ({ user, onSignOut }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleMenu = () => {
@@ -50,14 +56,22 @@ const MobileNavbar: React.FC = () => {
         </div>
         
         <div className="hidden md:flex items-center gap-4">
-          <Link to="/login">
-            <Button variant="outline" size="sm">
-              Log in
+          {user ? (
+            <Button variant="outline" size="sm" onClick={onSignOut}>
+              Log out
             </Button>
-          </Link>
-          <Link to="/signup">
-            <Button size="sm">Sign up</Button>
-          </Link>
+          ) : (
+            <>
+              <Link to="/login">
+                <Button variant="outline" size="sm">
+                  Log in
+                </Button>
+              </Link>
+              <Link to="/signup">
+                <Button size="sm">Sign up</Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
@@ -84,16 +98,24 @@ const MobileNavbar: React.FC = () => {
               Pricing
             </Link>
             <div className="flex space-x-2 pt-2">
-              <Link to="/login" className="flex-1">
-                <Button variant="outline" size="sm" className="w-full" onClick={toggleMenu}>
-                  Log in
+              {user ? (
+                <Button variant="outline" size="sm" className="w-full" onClick={onSignOut}>
+                  Log out
                 </Button>
-              </Link>
-              <Link to="/signup" className="flex-1">
-                <Button size="sm" className="w-full" onClick={toggleMenu}>
-                  Sign up
-                </Button>
-              </Link>
+              ) : (
+                <>
+                  <Link to="/login" className="flex-1">
+                    <Button variant="outline" size="sm" className="w-full" onClick={toggleMenu}>
+                      Log in
+                    </Button>
+                  </Link>
+                  <Link to="/signup" className="flex-1">
+                    <Button size="sm" className="w-full" onClick={toggleMenu}>
+                      Sign up
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
