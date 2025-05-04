@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import SymptomAnalyzer from "./pages/SymptomAnalyzer";
@@ -15,8 +15,67 @@ import NotFound from "./pages/NotFound";
 import Appointments from "./pages/Appointments";
 import AboutUs from "./pages/AboutUs";
 import Doctors from "./pages/Doctors";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
 const queryClient = new QueryClient();
+
+// Protected route component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
+// Routes with Auth Provider
+const AppRoutes = () => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  }
+  
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/about" element={<AboutUs />} />
+      <Route path="/doctors" element={<Doctors />} />
+      
+      {/* Protected routes */}
+      <Route path="/symptom-analyzer" element={
+        <ProtectedRoute>
+          <SymptomAnalyzer />
+        </ProtectedRoute>
+      } />
+      <Route path="/image-analysis" element={
+        <ProtectedRoute>
+          <ImageAnalysis />
+        </ProtectedRoute>
+      } />
+      <Route path="/appointments" element={
+        <ProtectedRoute>
+          <Appointments />
+        </ProtectedRoute>
+      } />
+      <Route path="/pricing" element={<Pricing />} />
+      
+      {/* Auth routes - redirect if already logged in */}
+      <Route path="/login" element={
+        user ? <Navigate to="/" replace /> : <Login />
+      } />
+      <Route path="/signup" element={
+        user ? <Navigate to="/" replace /> : <Signup />
+      } />
+      
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -24,20 +83,11 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/symptom-analyzer" element={<SymptomAnalyzer />} />
-            <Route path="/image-analysis" element={<ImageAnalysis />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/appointments" element={<Appointments />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/about" element={<AboutUs />} />
-            <Route path="/doctors" element={<Doctors />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
+        <AuthProvider>
+          <Layout>
+            <AppRoutes />
+          </Layout>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
