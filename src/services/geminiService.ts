@@ -31,7 +31,11 @@ export const analyzeSymptoms = async (symptoms: string, age: string, gender: str
   }
 
   try {
-    // Updated to use the Gemini 2.5 Pro model
+    console.log("Starting symptom analysis with API key length:", apiKey.length);
+    console.log("Symptoms:", symptoms.substring(0, 20) + "...");
+    console.log("Patient info:", `Age: ${age}, Gender: ${gender}`);
+    
+    // Use the correct Gemini API endpoint
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
@@ -66,25 +70,50 @@ export const analyzeSymptoms = async (symptoms: string, age: string, gender: str
       }),
     });
 
-    const data = await response.json();
+    console.log("Gemini API response status:", response.status);
     
     if (!response.ok) {
-      throw new Error(data.error?.message || "Failed to analyze symptoms");
+      const errorData = await response.json();
+      console.error("Gemini API error:", errorData);
+      throw new Error(errorData.error?.message || "Failed to analyze symptoms");
+    }
+    
+    const data = await response.json();
+    console.log("Gemini API response received:", data && JSON.stringify(data).substring(0, 100) + "...");
+    
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts) {
+      console.error("Unexpected response structure:", data);
+      throw new Error("Invalid response structure from Gemini API");
     }
     
     const textContent = data.candidates[0].content.parts[0].text;
+    console.log("Received text content:", textContent && textContent.substring(0, 100) + "...");
     
     // Extract the JSON part from the response
     const jsonMatch = textContent.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error("Failed to extract JSON from response:", textContent);
       throw new Error("Could not parse JSON response from Gemini API");
     }
     
-    const parsedResponse: GeminiResponse = JSON.parse(jsonMatch[0]);
-    return parsedResponse;
+    try {
+      const parsedResponse: GeminiResponse = JSON.parse(jsonMatch[0]);
+      console.log("Successfully parsed response:", parsedResponse);
+      return parsedResponse;
+    } catch (jsonError) {
+      console.error("JSON parsing error:", jsonError, "Raw match:", jsonMatch[0]);
+      throw new Error("Failed to parse JSON data from Gemini API response");
+    }
   } catch (error) {
     console.error("Error analyzing symptoms:", error);
-    toast.error("Failed to analyze symptoms. Please try again.");
+    
+    // Add more context to the error for better debugging
+    if (error instanceof Error) {
+      console.error("Error details:", error.message, error.stack);
+    }
+    
+    // Show a more detailed error message to the user
+    toast.error(`Failed to analyze symptoms: ${error instanceof Error ? error.message : "Unknown error"}`);
     throw error;
   }
 };

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,6 +11,7 @@ import ApiKeyInput from '@/components/ApiKeyInput';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertCircle } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -48,6 +49,7 @@ const SymptomAnalyzer: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [apiKey, setApiKey] = useState<string | null>(localStorage.getItem("gemini_api_key"));
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -58,8 +60,21 @@ const SymptomAnalyzer: React.FC = () => {
     },
   });
 
+  // Check API key on component mount
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem("gemini_api_key");
+    if (!savedApiKey && !apiKey) {
+      toast.info("No API key found. You can use the default key or set your own.", {
+        duration: 5000,
+      });
+    }
+  }, [apiKey]);
+
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!apiKey) {
+    // Clear previous error and results
+    setErrorMessage(null);
+    
+    if (!apiKey && !localStorage.getItem("gemini_api_key")) {
       toast.error("Please set your Gemini API key first");
       return;
     }
@@ -67,11 +82,13 @@ const SymptomAnalyzer: React.FC = () => {
     setIsAnalyzing(true);
     
     try {
+      console.log("Starting symptom analysis...");
       const analysisResult = await analyzeSymptoms(values.symptoms, values.age, values.gender);
       setResult(analysisResult);
       toast.success("Analysis complete!");
     } catch (error) {
       console.error("Error during analysis:", error);
+      setErrorMessage(error instanceof Error ? error.message : "Unknown error occurred");
       toast.error("Failed to analyze symptoms. Please try again.");
     } finally {
       setIsAnalyzing(false);
@@ -80,6 +97,8 @@ const SymptomAnalyzer: React.FC = () => {
 
   const handleApiKeyChange = (newApiKey: string) => {
     setApiKey(newApiKey);
+    // Clear error when API key changes
+    setErrorMessage(null);
   };
 
   const getSeverityColor = (severity: string) => {
@@ -185,12 +204,26 @@ const SymptomAnalyzer: React.FC = () => {
                   <Button 
                     type="submit" 
                     className="w-full" 
-                    disabled={isAnalyzing || !apiKey}
+                    disabled={isAnalyzing}
                   >
                     {isAnalyzing ? 'Analyzing...' : 'Analyze Symptoms'}
                   </Button>
                 </form>
               </Form>
+              
+              {errorMessage && (
+                <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-500" />
+                    <span className="font-medium text-red-800">AI Response Error</span>
+                  </div>
+                  <p className="mt-1 text-red-600">There was an issue with the AI analysis. Please try again or check your API key.</p>
+                  <details className="mt-2 text-xs text-red-500">
+                    <summary>View error details</summary>
+                    <p className="mt-1">{errorMessage}</p>
+                  </details>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
