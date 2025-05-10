@@ -11,7 +11,7 @@ import ApiKeyInput from '@/components/ApiKeyInput';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, RefreshCcw } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -45,11 +45,15 @@ const formSchema = z.object({
   }),
 });
 
+// Hardcoded API key for consistent experience
+const HARDCODED_API_KEY = "AIzaSyBWQchLXmB2Mo_Qwn2DaEoneEJoix9_xQ8";
+
 const SymptomAnalyzer: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [apiKey, setApiKey] = useState<string | null>(localStorage.getItem("gemini_api_key"));
+  const [apiKey, setApiKey] = useState<string>(localStorage.getItem("gemini_api_key") || HARDCODED_API_KEY);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -60,25 +64,17 @@ const SymptomAnalyzer: React.FC = () => {
     },
   });
 
-  // Check API key on component mount
+  // Ensure API key is set on component mount
   useEffect(() => {
-    const savedApiKey = localStorage.getItem("gemini_api_key");
-    if (!savedApiKey && !apiKey) {
-      toast.info("No API key found. You can use the default key or set your own.", {
-        duration: 5000,
-      });
+    if (!localStorage.getItem("gemini_api_key")) {
+      localStorage.setItem("gemini_api_key", HARDCODED_API_KEY);
+      setApiKey(HARDCODED_API_KEY);
     }
-  }, [apiKey]);
+  }, []);
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     // Clear previous error and results
     setErrorMessage(null);
-    
-    if (!apiKey && !localStorage.getItem("gemini_api_key")) {
-      toast.error("Please set your Gemini API key first");
-      return;
-    }
-    
     setIsAnalyzing(true);
     
     try {
@@ -86,12 +82,31 @@ const SymptomAnalyzer: React.FC = () => {
       const analysisResult = await analyzeSymptoms(values.symptoms, values.age, values.gender);
       setResult(analysisResult);
       toast.success("Analysis complete!");
+      // Reset retry count on success
+      setRetryCount(0);
     } catch (error) {
       console.error("Error during analysis:", error);
       setErrorMessage(error instanceof Error ? error.message : "Unknown error occurred");
-      toast.error("Failed to analyze symptoms. Please try again.");
+      toast.error("Failed to analyze symptoms. Automatically trying with default API key.");
+      
+      // Reset API key to hardcoded value on error
+      localStorage.setItem("gemini_api_key", HARDCODED_API_KEY);
+      setApiKey(HARDCODED_API_KEY);
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    setErrorMessage(null);
+    localStorage.setItem("gemini_api_key", HARDCODED_API_KEY);
+    setApiKey(HARDCODED_API_KEY);
+    const currentValues = form.getValues();
+    if (currentValues.symptoms && currentValues.age && currentValues.gender) {
+      handleSubmit(currentValues);
+    } else {
+      toast.error("Please fill in all required fields before retrying");
     }
   };
 
@@ -217,7 +232,18 @@ const SymptomAnalyzer: React.FC = () => {
                     <AlertCircle className="h-4 w-4 text-red-500" />
                     <span className="font-medium text-red-800">AI Response Error</span>
                   </div>
-                  <p className="mt-1 text-red-600">There was an issue with the AI analysis. Please try again or check your API key.</p>
+                  <p className="mt-1 text-red-600">There was an issue with the AI analysis.</p>
+                  <div className="mt-3 flex justify-center">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex items-center gap-1 bg-white"
+                      onClick={handleRetry}
+                    >
+                      <RefreshCcw className="h-3 w-3" />
+                      Retry with Default Key
+                    </Button>
+                  </div>
                   <details className="mt-2 text-xs text-red-500">
                     <summary>View error details</summary>
                     <p className="mt-1">{errorMessage}</p>

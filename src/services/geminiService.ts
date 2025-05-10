@@ -18,20 +18,15 @@ interface ImageAnalysisResponse {
   sources: { title: string; url: string }[];
 }
 
-// Your hardcoded API key - Replace "YOUR_GEMINI_API_KEY_HERE" with your actual Gemini API key
+// The hardcoded API key that will always be available
 const HARDCODED_API_KEY = "AIzaSyBWQchLXmB2Mo_Qwn2DaEoneEJoix9_xQ8";
 
 export const analyzeSymptoms = async (symptoms: string, age: string, gender: string): Promise<GeminiResponse> => {
-  // Try to get the API key from localStorage first, fallback to the hardcoded key
+  // Always use the hardcoded API key, but let localStorage override if available
   const apiKey = localStorage.getItem("gemini_api_key") || HARDCODED_API_KEY;
   
-  if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE") {
-    toast.error("API key not configured correctly");
-    throw new Error("No valid API key available");
-  }
-
   try {
-    console.log("Starting symptom analysis with API key length:", apiKey.length);
+    console.log("Starting symptom analysis with API key");
     console.log("Symptoms:", symptoms.substring(0, 20) + "...");
     console.log("Patient info:", `Age: ${age}, Gender: ${gender}`);
     
@@ -112,6 +107,13 @@ export const analyzeSymptoms = async (symptoms: string, age: string, gender: str
       console.error("Error details:", error.message, error.stack);
     }
     
+    // If there's an error with the provided key, retry with the hardcoded key
+    if (apiKey !== HARDCODED_API_KEY) {
+      console.log("Retrying with hardcoded API key");
+      localStorage.setItem("gemini_api_key", HARDCODED_API_KEY);
+      return analyzeSymptoms(symptoms, age, gender);
+    }
+    
     // Show a more detailed error message to the user
     toast.error(`Failed to analyze symptoms: ${error instanceof Error ? error.message : "Unknown error"}`);
     throw error;
@@ -124,13 +126,9 @@ export const analyzeImage = async (
   bodyPart: string, 
   additionalInfo?: string
 ): Promise<ImageAnalysisResponse> => {
+  // Always use the hardcoded API key, but let localStorage override if available
   const apiKey = localStorage.getItem("gemini_api_key") || HARDCODED_API_KEY;
   
-  if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE") {
-    toast.error("API key not configured correctly");
-    throw new Error("No valid API key available");
-  }
-
   try {
     // Convert image to base64
     const base64Image = await fileToBase64(imageFile);
@@ -141,8 +139,7 @@ export const analyzeImage = async (
       bodyPart,
       additionalInfoProvided: !!additionalInfo,
       imageSize: base64Image.length,
-      fileType: imageFile.type,
-      apiKeyLength: apiKey.length
+      fileType: imageFile.type
     });
     
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-vision:generateContent?key=${apiKey}`, {
@@ -223,6 +220,14 @@ export const analyzeImage = async (
     }
   } catch (error) {
     console.error("Error analyzing image:", error);
+    
+    // If there's an error with the provided key, retry with the hardcoded key
+    if (apiKey !== HARDCODED_API_KEY) {
+      console.log("Retrying with hardcoded API key");
+      localStorage.setItem("gemini_api_key", HARDCODED_API_KEY);
+      return analyzeImage(imageFile, imageType, bodyPart, additionalInfo);
+    }
+    
     toast.error("Failed to analyze image. Please try again.");
     
     // Add more context to the error for better debugging
