@@ -1,9 +1,9 @@
 
+@import url("./styles/calendar.css");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url("./styles/calendar.css");
 
 @layer base {
   :root {

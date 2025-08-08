@@ -1,17 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { analyzeSymptoms } from '@/services/geminiService';
+import { analyzeSymptomsUsingGemini } from '@/services/geminiService';
 import { toast } from '@/components/ui/sonner';
 import ApiKeyInput from '@/components/ApiKeyInput';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, RefreshCcw } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -23,6 +21,9 @@ import {
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { analyzeSymptomsUsingPerplexity } from '@/services/perplexityService';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ChevronDown } from 'lucide-react';
 
 interface AnalysisResult {
   possibleConditions: string[];
@@ -45,15 +46,10 @@ const formSchema = z.object({
   }),
 });
 
-// Hardcoded API key for consistent experience
-const HARDCODED_API_KEY = "AIzaSyBWQchLXmB2Mo_Qwn2DaEoneEJoix9_xQ8";
-
 const SymptomAnalyzer: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [apiKey, setApiKey] = useState<string>(localStorage.getItem("gemini_api_key") || HARDCODED_API_KEY);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
+   const [selectedModel, setSelectedModel] = useState<'gemini' | 'perplexity'>('perplexity');
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -64,57 +60,39 @@ const SymptomAnalyzer: React.FC = () => {
     },
   });
 
-  // Ensure API key is set on component mount
-  useEffect(() => {
-    if (!localStorage.getItem("gemini_api_key")) {
-      localStorage.setItem("gemini_api_key", HARDCODED_API_KEY);
-      setApiKey(HARDCODED_API_KEY);
+  const saveAnalysis = () => {
+    if (result) {
+      localStorage.setItem("analysis_result", JSON.stringify(result));
+      toast.success("Analysis result saved successfully!");
+    } else {
+      toast.error("No analysis result to save.");
     }
-  }, []);
+  };
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
-    // Clear previous error and results
-    setErrorMessage(null);
+    
     setIsAnalyzing(true);
     
     try {
-      console.log("Starting symptom analysis...");
-      const analysisResult = await analyzeSymptoms(values.symptoms, values.age, values.gender);
-      setResult(analysisResult);
-      toast.success("Analysis complete!");
-      // Reset retry count on success
-      setRetryCount(0);
+      // const analysisResult = await analyzeSymptomsUsingGemini(values.symptoms, values.age, values.gender);
+      if (selectedModel === 'gemini') {
+        const analysisResult = await analyzeSymptomsUsingGemini(values.symptoms, values.age, values.gender);
+        setResult(analysisResult);
+      } else {
+        const analysisResult = await analyzeSymptomsUsingPerplexity(values.symptoms, values.age, values.gender);
+        setResult(analysisResult);
+      }
+      toast.success("Analysis complete!", {
+        position: "top-right",
+      });
     } catch (error) {
       console.error("Error during analysis:", error);
-      setErrorMessage(error instanceof Error ? error.message : "Unknown error occurred");
-      toast.error("Failed to analyze symptoms. Automatically trying with default API key.");
-      
-      // Reset API key to hardcoded value on error
-      localStorage.setItem("gemini_api_key", HARDCODED_API_KEY);
-      setApiKey(HARDCODED_API_KEY);
+      toast.error("Failed to analyze symptoms. Please try again.");
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const handleRetry = () => {
-    setRetryCount(prev => prev + 1);
-    setErrorMessage(null);
-    localStorage.setItem("gemini_api_key", HARDCODED_API_KEY);
-    setApiKey(HARDCODED_API_KEY);
-    const currentValues = form.getValues();
-    if (currentValues.symptoms && currentValues.age && currentValues.gender) {
-      handleSubmit(currentValues);
-    } else {
-      toast.error("Please fill in all required fields before retrying");
-    }
-  };
-
-  const handleApiKeyChange = (newApiKey: string) => {
-    setApiKey(newApiKey);
-    // Clear error when API key changes
-    setErrorMessage(null);
-  };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -138,13 +116,75 @@ const SymptomAnalyzer: React.FC = () => {
         </p>
       </div>
 
-      <ApiKeyInput onApiKeyChange={handleApiKeyChange} />
+      {/* <ApiKeyInput onApiKeyChange={handleApiKeyChange} /> */}
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
         <div className="md:col-span-1">
           <Card className="sticky top-24">
             <CardHeader>
-              <CardTitle>Enter Your Symptoms</CardTitle>
+              <CardTitle className="flex justify-between items-center">
+                <span>Enter Your Symptoms</span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        {selectedModel === 'gemini' ? (
+                          <>
+                            <img 
+                              src="/gemini-color.svg" 
+                              alt="Gemini Logo" 
+                              className="h-4 w-4" 
+                            />
+                            <span>Gemini</span>
+                          </>
+                        ) : (
+                          <>
+                            <img 
+                              src="/perplexity-color.svg" 
+                              alt="Perplexity Logo" 
+                              className="h-4 w-4" 
+                            />
+                            <span>Perplexity</span>
+                          </>
+                        )}
+                      </div>
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-[200px]">
+                    <DropdownMenuLabel>Select AI Model</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => setSelectedModel('gemini')}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <img 
+                        src="/gemini-color.svg" 
+                        alt="Gemini Logo" 
+                        className="h-4 w-4" 
+                      />
+                      <span>Google Gemini</span>
+                      {selectedModel === 'gemini' && (
+                        <span className="ml-auto h-2 w-2 rounded-full bg-primary" />
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => setSelectedModel('perplexity')}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <img 
+                        src="/perplexity-color.svg" 
+                        alt="Perplexity Logo" 
+                        className="h-4 w-4" 
+                      />
+                      <span>Perplexity AI</span>
+                      {selectedModel === 'perplexity' && (
+                        <span className="ml-auto h-2 w-2 rounded-full bg-primary" />
+                      )}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </CardTitle>
               <CardDescription>
                 Be as detailed as possible about what you're experiencing.
               </CardDescription>
@@ -179,7 +219,7 @@ const SymptomAnalyzer: React.FC = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="male" >Male</SelectItem>
                             <SelectItem value="female">Female</SelectItem>
                             <SelectItem value="other">Other</SelectItem>
                           </SelectContent>
@@ -225,31 +265,6 @@ const SymptomAnalyzer: React.FC = () => {
                   </Button>
                 </form>
               </Form>
-              
-              {errorMessage && (
-                <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-red-500" />
-                    <span className="font-medium text-red-800">AI Response Error</span>
-                  </div>
-                  <p className="mt-1 text-red-600">There was an issue with the AI analysis.</p>
-                  <div className="mt-3 flex justify-center">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex items-center gap-1 bg-white"
-                      onClick={handleRetry}
-                    >
-                      <RefreshCcw className="h-3 w-3" />
-                      Retry with Default Key
-                    </Button>
-                  </div>
-                  <details className="mt-2 text-xs text-red-500">
-                    <summary>View error details</summary>
-                    <p className="mt-1">{errorMessage}</p>
-                  </details>
-                </div>
-              )}
             </CardContent>
           </Card>
         </div>
@@ -400,7 +415,7 @@ const SymptomAnalyzer: React.FC = () => {
                     <Button className="flex-1 bg-genz-gradient">
                       Book Doctor Consultation
                     </Button>
-                    <Button variant="outline" className="flex-1">
+                    <Button variant="outline" className="flex-1" onClick={saveAnalysis}>
                       Save This Analysis
                     </Button>
                   </div>

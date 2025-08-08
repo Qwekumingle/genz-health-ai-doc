@@ -1,136 +1,118 @@
-
-import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+// src/context/AuthContext.tsx
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from '@/components/ui/sonner';
+import axios from 'axios';
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: any;
+  isAuthenticated: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  signUp: (formData: RegisterFormData) => Promise<void>;
   signOut: () => Promise<void>;
+}
+
+interface RegisterFormData {
+  email: string;
+  password: string;
+  firstname: string;
+  lastname: string;
+  terms: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log('Auth state changed:', event);
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (event === 'SIGNED_IN') {
-          toast.success('Successfully signed in!');
-          navigate('/');
-        } else if (event === 'SIGNED_OUT') {
-          toast.info('You have been signed out');
-          navigate('/login');
-        }
-      }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      fetchUser(token);
+    } else {
       setLoading(false);
-    });
+    }
+  }, []);
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [navigate]);
-
-  const signIn = async (email: string, password: string) => {
+  const fetchUser = async (token: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const res = await axios.get('http://localhost:8000/accounts/user/', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
-      
-      if (error) {
-        // Special handling for email not confirmed error
-        if (error.message === 'Email not confirmed') {
-          toast.error('Please check your email for the confirmation link');
-          // Try to resend confirmation email
-          await supabase.auth.resend({
-            type: 'signup',
-            email,
-          });
-          toast.info('A new confirmation email has been sent');
-        } else {
-          toast.error(error.message);
-        }
-        throw error;
-      }
-      
-      // Auth state change listener will handle success and navigation
-    } catch (error: any) {
-      console.error('Error signing in:', error.message);
-      throw error;
+      setUser(res.data);
+    } catch (err) {
+      console.error('Error fetching user:', (err as any).response?.data || err);
+      localStorage.removeItem('accessToken');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+  const signIn = async (email: string, password: string) => {
     try {
-      const { error, data } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            first_name: firstName,
-            last_name: lastName
-          },
-          // Attempt auto-confirmation for development
-          emailRedirectTo: window.location.origin
-        }
-      });
-      
-      if (error) {
-        toast.error(error.message);
-        throw error;
-      }
-      
-      if (data.user && !data.session) {
-        // This means email confirmation is required
-        toast.success('Signup successful! Please check your email to confirm your account.');
-      } else if (data.session) {
-        // Email confirmation is not required or was bypassed
-        toast.success('Signup successful!');
-      }
-    } catch (error: any) {
-      console.error('Error signing up:', error.message);
-      throw error;
+      const res = await axios.post('http://localhost:8000/accounts/login/', { email, password });
+      const { access, refresh } = res.data;
+
+      localStorage.setItem('accessToken', access);
+      localStorage.setItem('refreshToken', refresh);
+
+      await fetchUser(access);
+      navigate('/');
+    } catch (err) {
+      console.error('Login failed:', (err as any).response?.data || err);
+      throw err;
+    }
+  };
+
+  const signUp = async (formData: RegisterFormData) => {
+    try {
+      await axios.post('http://localhost:8000/accounts/register/', formData);
+      navigate('/login');
+    } catch (err) {
+      console.error('Registration failed:', (err as any).response?.data || err);
+      throw err;
     }
   };
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        toast.error(error.message);
-        throw error;
+      const refresh = localStorage.getItem('refreshToken');
+      if (refresh) {
+        await axios.post(
+          'http://localhost:8000/accounts/logout/',
+          { refresh },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+            },
+          }
+        );
       }
-      // Auth state change listener will handle navigation
-    } catch (error: any) {
-      console.error('Error signing out:', error.message);
-      throw error;
+    } catch (err) {
+      console.warn('Logout request failed (possibly expired token):', (err as any).response?.data || err);
+    } finally {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      setUser(null);
+      navigate('/login');
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        loading,
+        signIn,
+        signUp,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -138,7 +120,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
