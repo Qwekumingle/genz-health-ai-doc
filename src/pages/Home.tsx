@@ -160,8 +160,26 @@ const Home: React.FC = () => {
                 <h2 className="mb-4 text-3xl font-bold md:text-4xl">Ready to take control of your health?</h2>
                 <p className="mb-6 text-lg">
                   Sign up now and get started with our AI-powered medical assistant for free.
+                  You can also join our waitlist for early access to our platform.
                 </p>
                 <div className="flex flex-col space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
+                  {
+                    user ? (
+                      <></>
+                    ) : (
+                    <Link to="/wait-list">
+                      <Button size="lg" variant="outline" className="w-full bg-white/10 border-white text-white hover:bg-white/10 sm:w-auto">
+                        <span className=''>Join Our Waitlist</span>
+                      </Button>
+                    </Link>
+                    )
+                  }
+                 
+                  <Link to="/pricing">
+                    <Button size="lg" variant="outline" className="w-full text-primary hover:bg-gray-100 sm:w-auto">
+                      View Pricing
+                    </Button>
+                  </Link>
                 {
                   user ? (
                     <></>
@@ -173,12 +191,6 @@ const Home: React.FC = () => {
                   </Link>
                   )
                 }
-                 
-                  <Link to="/pricing">
-                    <Button size="lg" variant="outline" className="w-full text-primary hover:bg-gray-100 sm:w-auto">
-                      View Pricing
-                    </Button>
-                  </Link>
                 </div>
               </div>
               <div className="hidden justify-self-center md:block">

@@ -1,9 +1,9 @@
-
+import { useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import SymptomAnalyzer from "./pages/SymptomAnalyzer";
@@ -15,9 +15,24 @@ import NotFound from "./pages/NotFound";
 import Appointments from "./pages/Appointments";
 import AboutUs from "./pages/AboutUs";
 import Doctors from "./pages/Doctors";
+import WaitList from "./pages/Waitlist";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
 const queryClient = new QueryClient();
+
+// Scroll to top component
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  }, [pathname]);
+
+  return null;
+}
 
 // Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -41,39 +56,43 @@ const AppRoutes = () => {
   }
   
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/about" element={<AboutUs />} />
-      <Route path="/doctors" element={<Doctors />} />
-      
-      {/* Protected routes */}
-      <Route path="/symptom-analyzer" element={
-        <ProtectedRoute>
-          <SymptomAnalyzer />
-        </ProtectedRoute>
-      } />
-      <Route path="/image-analysis" element={
-        <ProtectedRoute>
-          <ImageAnalysis />
-        </ProtectedRoute>
-      } />
-      <Route path="/appointments" element={
-        <ProtectedRoute>
-          <Appointments />
-        </ProtectedRoute>
-      } />
-      <Route path="/pricing" element={<Pricing />} />
-      
-      {/* Auth routes - redirect if already logged in */}
-      <Route path="/login" element={
-        user ? <Navigate to="/" replace /> : <Login />
-      } />
-      <Route path="/signup" element={
-        user ? <Navigate to="/" replace /> : <Signup />
-      } />
-      
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/about" element={<AboutUs />} />
+        <Route path="/doctors" element={<Doctors />} />
+        <Route path="/wait-list" element={<WaitList />} />
+        
+        {/* Protected routes */}
+        <Route path="/symptom-analyzer" element={
+          <ProtectedRoute>
+            <SymptomAnalyzer />
+          </ProtectedRoute>
+        } />
+        <Route path="/image-analysis" element={
+          <ProtectedRoute>
+            <ImageAnalysis />
+          </ProtectedRoute>
+        } />
+        <Route path="/appointments" element={
+          <ProtectedRoute>
+            <Appointments />
+          </ProtectedRoute>
+        } />
+        <Route path="/pricing" element={<Pricing />} />
+        
+        {/* Auth routes - redirect if already logged in */}
+        <Route path="/login" element={
+          user ? <Navigate to="/" replace /> : <Login />
+        } />
+        <Route path="/signup" element={
+          user ? <Navigate to="/" replace /> : <Signup />
+        } />
+        
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
   );
 };
 
